@@ -3,6 +3,7 @@ import { FiberNode, FiberRootNode, createWorkInProgress } from './fiber';
 import { beginWork } from './beginWork';
 import { completeWork } from './completeWork';
 import { HostRoot } from './workTags';
+import { MutationMask, NoFlags } from './fiberFlags';
 
 let workInProgress: FiberNode | null = null;
 
@@ -44,6 +45,41 @@ const renderRoot = (root: FiberRootNode) => {
 			workInProgress = null;
 		}
 	} while (workInProgress !== null);
+
+	const finishedWork = root.current.alternate;
+	root.finishedWork = finishedWork;
+
+	// 提交
+	commitRoot(root);
+};
+
+const commitRoot = (root: FiberRootNode) => {
+	const finishedWork = root.finishedWork;
+
+	if (finishedWork === null) {
+		return;
+	}
+
+	if (__DEV__) {
+		console.warn('commit阶段开始', finishedWork);
+	}
+
+	// 重置
+	root.finishedWork = null;
+
+	// 判断是否存在3个子阶段需要执行的操作
+	const subtreeHasEffects =
+		(finishedWork.subtreeFlags & MutationMask) !== NoFlags;
+	const rootHasEffect = (finishedWork.flags & MutationMask) !== NoFlags;
+
+	if (subtreeHasEffects || rootHasEffect) {
+		// beforeMutation
+		// mutation
+		root.current = finishedWork;
+		// layout
+	} else {
+		root.current = finishedWork;
+	}
 };
 
 const workLoop = () => {
